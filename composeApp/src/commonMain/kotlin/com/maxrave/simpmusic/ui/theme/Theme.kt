@@ -77,6 +77,13 @@ val LocalLiquidGlassEnabled = staticCompositionLocalOf { true }
  */
 val LocalForcedDarkColorScheme = staticCompositionLocalOf<ColorScheme?> { null }
 
+/**
+ * Whether the scheme in force is the platform's wallpaper one (Material You on Android, matugen's
+ * palette on Desktop). The Desktop shell then paints its panels from the scheme instead of its
+ * fixed neutral grey, so they wear the same palette as the rest of that desktop.
+ */
+val LocalWallpaperScheme = staticCompositionLocalOf { false }
+
 /** Parses "RRGGBB" or "AARRGGBB" (optionally "#"-prefixed) into a [Color]; null if malformed. */
 fun parseThemeColorHex(hex: String): Color? {
     val clean = hex.trim().removePrefix("#")
@@ -156,9 +163,15 @@ fun AppTheme(
             )
     // Immersive screens stay dark even at light theme (see [ForceDarkContent]). Resolve their scheme
     // once here instead of letting every such subtree build a palette of its own.
+    // A wallpaper scheme has a dark half of its own, so the immersive screens take that rather than
+    // falling back to the default seed.
+    val wallpaperDarkScheme =
+        if (wallpaperScheme != null && !isDark) platformDynamicColorScheme(true) else null
     val forcedDarkScheme =
         if (isDark) {
             colorScheme
+        } else if (wallpaperDarkScheme != null) {
+            wallpaperDarkScheme
         } else {
             rememberDynamicColorScheme(
                 seedColor = seedColor,
@@ -177,6 +190,7 @@ fun AppTheme(
                 LocalIsDarkTheme provides isDark,
                 LocalForcedDarkColorScheme provides forcedDarkScheme,
                 LocalLiquidGlassEnabled provides liquidGlassEnabled,
+                LocalWallpaperScheme provides (wallpaperScheme != null),
                 content = content,
             )
         },

@@ -102,6 +102,7 @@ import com.maxrave.simpmusic.ui.screen.player.NowPlayingScreenContent
 import com.maxrave.simpmusic.ui.theme.AppTheme
 import com.maxrave.simpmusic.ui.theme.ForceDarkContent
 import com.maxrave.simpmusic.ui.theme.desktopPanelDark
+import com.maxrave.simpmusic.ui.theme.LocalWallpaperScheme
 import com.maxrave.simpmusic.ui.theme.desktopWindowDark
 import com.maxrave.simpmusic.ui.theme.desktopWindowLight
 import com.maxrave.simpmusic.ui.theme.fontFamily
@@ -528,7 +529,13 @@ fun App(
         // one shade back towards the middle, so the panels read as raised either way.
         val desktopWindow = if (isLightScheme) desktopWindowLight else desktopWindowDark
         val desktopPanel =
-            if (isLightScheme) MaterialTheme.colorScheme.surfaceContainer else desktopPanelDark
+            when {
+                isLightScheme -> MaterialTheme.colorScheme.surfaceContainer
+                // A wallpaper palette's own surface sits where the neutral panel does (tone 6), so
+                // the panels keep their step above the window and take the desktop's hue.
+                LocalWallpaperScheme.current -> MaterialTheme.colorScheme.surface
+                else -> desktopPanelDark
+            }
 
         // Backdrop base must match the page, so glass over an empty area reads as the page itself.
         // On Desktop the page is the panel: its colour is painted outside the recorded layer, and

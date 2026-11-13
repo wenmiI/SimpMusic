@@ -1191,6 +1191,8 @@ if (getPlatform() == Platform.Android) {
   - Rounds run while the app does: at start, every 5 minutes, and 4 s after the outbox last changed (`SyncDao.pendingCount()`); on Android also from the existing WorkManager job and on app open.
   - Verified: `AccountSyncTest` (data jvmTest) runs a real host and two devices on localhost; the Desktop app and the host compile. **The Android side was not compiled** on the machine this was written on (no accepted SDK licence).
 
+- **Desktop "Wallpaper" theme colour reads a matugen palette (2026-11-13, fork `account-sync`)**: the JVM `platformDynamicColorScheme` was `null`, so Desktop never offered Wallpaper. It now reads a JSON of every Material 3 role, dark and light (`{"dark": {"primary": "#…", …}, "light": {…}}`, matugen's snake_case role names), from `-Dsimpmusic.matugen.colors`, `$SIMPMUSIC_MATUGEN_COLORS` or `~/.cache/matugen/simpmusic-colors.json`, written by a matugen template. The file is polled every 2 s by mtime, so a new wallpaper re-themes the running app; a half-written file fails to parse and the previous palette stays. Wallpaper is offered only while the file exists. Roles the file omits keep Material's baseline. With Wallpaper on, the immersive (force-dark) screens take the palette's dark half instead of the default seed, and the Desktop shell's panels take `colorScheme.surface` instead of the fixed `desktopPanelDark` (`LocalWallpaperScheme`), so the sidebar and pages wear the palette too; the window stays pure black.
+
 ## 🔄 CLAUDE.md Auto-Update Rule (MANDATORY)
 
 After completing any of the following types of changes, the AI agent **MUST** update this CLAUDE.md file:
