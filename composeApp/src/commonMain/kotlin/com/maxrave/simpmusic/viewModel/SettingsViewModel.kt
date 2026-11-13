@@ -24,6 +24,8 @@ import com.maxrave.domain.repository.ArtistRepository
 import com.maxrave.domain.repository.CacheRepository
 import com.maxrave.domain.repository.DiscordRepository
 import com.maxrave.domain.repository.LibrarySyncRepository
+import com.maxrave.domain.repository.AccountSyncRepository
+import com.maxrave.domain.data.model.librarysync.AccountSyncState
 import com.maxrave.domain.data.model.librarysync.LibrarySyncState
 import com.maxrave.domain.repository.CommonRepository
 import com.maxrave.domain.repository.LyricsRomanizerRepository
@@ -86,6 +88,7 @@ class SettingsViewModel(
     private val lyricsRomanizerRepository: LyricsRomanizerRepository,
     private val discordRepository: DiscordRepository,
     private val librarySyncRepository: LibrarySyncRepository,
+    private val accountSyncRepository: AccountSyncRepository,
 ) : BaseViewModel() {
     private val databasePath: String? = commonRepository.getDatabasePath()
     private val downloadUtils: DownloadHandler by inject()
@@ -96,6 +99,10 @@ class SettingsViewModel(
     /** Library sync (#2663): clearing history and restoring a backup both leave the pairing. */
     val librarySyncPaired: Boolean get() = librarySyncRepository.state.value.isPaired
     val librarySyncState: StateFlow<LibrarySyncState> get() = librarySyncRepository.state
+
+    /** Account sync: the same two actions sign this device out, for the same reasons. */
+    val accountSyncSignedIn: Boolean get() = accountSyncRepository.state.value.isSignedIn
+    val accountSyncState: StateFlow<AccountSyncState> get() = accountSyncRepository.state
 
     /** READY everywhere the dictionary is bundled (Desktop), so only Android ever leaves it. */
     val japaneseDictionaryState: StateFlow<RomanizationDictionaryState> =
@@ -1342,6 +1349,11 @@ class SettingsViewModel(
                         } catch (e: Exception) {
                             Logger.e(tag, "library sync: unpair before clearing history failed", e)
                         }
+                        try {
+                            accountSyncRepository.signOut()
+                        } catch (e: Exception) {
+                            Logger.e(tag, "account sync: sign out before clearing history failed", e)
+                        }
                         songRepository.clearHistoryAndOrphanedSongs()
                     }
                 } catch (e: CancellationException) {
@@ -1400,6 +1412,8 @@ class SettingsViewModel(
                     // know about; pairing again starts both from it. A failure here must not stop the restore.
                     runCatching { librarySyncRepository.unpairAll() }
                         .onFailure { Logger.e(tag, "library sync: unpair before restore failed", it) }
+                    runCatching { accountSyncRepository.signOut() }
+                        .onFailure { Logger.e(tag, "account sync: sign out before restore failed", it) }
                     restoreNative(commonRepository, uri) {
                         getData()
                     }

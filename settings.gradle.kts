@@ -40,6 +40,7 @@ include(
     ":vivoAndroidApp",
     ":composeApp",
     ":desktopApp",
+    ":syncServer",
     ":common",
     ":data",
     ":domain",

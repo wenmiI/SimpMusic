@@ -33,6 +33,7 @@ import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.domain.mediaservice.handler.ToastType
 import com.maxrave.domain.notification.DesktopNotificationManager
+import com.maxrave.domain.repository.AccountSyncRepository
 import com.maxrave.domain.repository.LibrarySyncHostRepository
 import com.maxrave.data.io.getHomeFolderPath
 import com.maxrave.logger.Logger
@@ -275,6 +276,8 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
 
     // Library sync (#2663): reopens the server for paired phones. Off the startup path: it binds a port.
     CoroutineScope(SupervisorJob() + Dispatchers.IO).launch { getKoin().get<LibrarySyncHostRepository>().start() }
+    // Account sync: signed in, this computer runs its own rounds for as long as the app does.
+    getKoin().get<AccountSyncRepository>().start()
 
     val sharedViewModel = getKoin().get<SharedViewModel>()
     if (sharedViewModel.shouldCheckForUpdate()) {

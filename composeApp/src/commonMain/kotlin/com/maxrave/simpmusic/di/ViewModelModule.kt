@@ -16,6 +16,7 @@ import com.maxrave.simpmusic.viewModel.LibraryDynamicPlaylistViewModel
 import com.maxrave.simpmusic.viewModel.LibrarySidebarViewModel
 import com.maxrave.simpmusic.viewModel.LibraryViewModel
 import com.maxrave.simpmusic.viewModel.LocalPlaylistViewModel
+import com.maxrave.simpmusic.viewModel.AccountSyncViewModel
 import com.maxrave.simpmusic.viewModel.LibrarySyncHostViewModel
 import com.maxrave.simpmusic.viewModel.LibrarySyncPhoneViewModel
 import com.maxrave.simpmusic.viewModel.LogInViewModel
@@ -72,6 +73,7 @@ val viewModelModule =
         viewModel { LoginSyncSenderViewModel(get(), get()) }
         viewModel { LibrarySyncHostViewModel(get()) }
         viewModel { LibrarySyncPhoneViewModel(get()) }
+        viewModel { AccountSyncViewModel(get()) }
         viewModel { BrowserLoginViewModel(get()) }
         viewModel { CommentsViewModel(get(), get()) }
         viewModel { SoundCloudPlayerViewModel(get()) }
@@ -129,6 +131,7 @@ val viewModelModule =
         }
         viewModel {
             SettingsViewModel(
+                get(),
                 get(),
                 get(),
                 get(),

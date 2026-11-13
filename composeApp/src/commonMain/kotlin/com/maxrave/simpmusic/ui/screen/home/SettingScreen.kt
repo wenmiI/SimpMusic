@@ -113,6 +113,7 @@ import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.DesktopMiniPlayerClearance
 import com.maxrave.simpmusic.expect.ui.LibrarySyncDialog
+import com.maxrave.simpmusic.ui.component.AccountSyncDialog
 import com.maxrave.simpmusic.expect.ui.LoginSyncDialog
 import com.maxrave.simpmusic.expect.ui.VerticalScrollBar
 import com.maxrave.simpmusic.expect.ui.syncedAgo
@@ -239,7 +240,12 @@ import simpmusic.composeapp.generated.resources.clear_downloaded_cache
 import simpmusic.composeapp.generated.resources.clear_listening_history
 import simpmusic.composeapp.generated.resources.clear_listening_history_confirm
 import simpmusic.composeapp.generated.resources.clear_listening_history_description
+import simpmusic.composeapp.generated.resources.clear_listening_history_signs_out
 import simpmusic.composeapp.generated.resources.clear_listening_history_unpairs
+import simpmusic.composeapp.generated.resources.account_sync_not_signed_in
+import simpmusic.composeapp.generated.resources.account_sync_summary_not_synced
+import simpmusic.composeapp.generated.resources.account_sync_summary_synced
+import simpmusic.composeapp.generated.resources.account_sync_title
 import simpmusic.composeapp.generated.resources.clear_player_cache
 import simpmusic.composeapp.generated.resources.clear_thumbnail_cache
 import simpmusic.composeapp.generated.resources.content
@@ -535,6 +541,7 @@ fun SettingScreen(
     val language by viewModel.language.collectAsStateWithLifecycle()
     val location by viewModel.location.collectAsStateWithLifecycle()
     val librarySyncState by viewModel.librarySyncState.collectAsStateWithLifecycle()
+    val accountSyncState by viewModel.accountSyncState.collectAsStateWithLifecycle()
     val quality by viewModel.quality.collectAsStateWithLifecycle()
     val downloadQuality by viewModel.downloadQuality.collectAsStateWithLifecycle()
     val autoDownloadLikedSongs by viewModel.autoDownloadLikedSongs.collectAsStateWithLifecycle()
@@ -655,6 +662,9 @@ fun SettingScreen(
     var showLibrarySyncDialog by rememberSaveable {
         mutableStateOf(false)
     }
+    var showAccountSyncDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
     var showThirdPartyLibraries by rememberSaveable {
         mutableStateOf(false)
     }
@@ -770,6 +780,16 @@ fun SettingScreen(
                                 }
                             },
                         onClick = { showLibrarySyncDialog = true },
+                    )
+                    SettingItem(
+                        title = stringResource(Res.string.account_sync_title),
+                        subtitle =
+                            accountSyncState.account?.let { account ->
+                                accountSyncState.lastSyncAt?.let {
+                                    stringResource(Res.string.account_sync_summary_synced, account.user, account.serverName, syncedAgo(it))
+                                } ?: stringResource(Res.string.account_sync_summary_not_synced, account.user, account.serverName)
+                            } ?: stringResource(Res.string.account_sync_not_signed_in),
+                        onClick = { showAccountSyncDialog = true },
                     )
                 }
                 SettingGroup(title = stringResource(Res.string.user_interface)) {
@@ -1727,7 +1747,11 @@ fun SettingScreen(
                                 message =
                                     runBlocking {
                                         val confirm = getString(Res.string.clear_listening_history_confirm)
-                                        if (viewModel.librarySyncPaired) "$confirm\n\n${getString(Res.string.clear_listening_history_unpairs)}" else confirm
+                                        when {
+                                            viewModel.librarySyncPaired -> "$confirm\n\n${getString(Res.string.clear_listening_history_unpairs)}"
+                                            viewModel.accountSyncSignedIn -> "$confirm\n\n${getString(Res.string.clear_listening_history_signs_out)}"
+                                            else -> confirm
+                                        }
                                     },
                                 confirm =
                                     runBlocking { getString(Res.string.clear) } to {
@@ -3059,6 +3083,9 @@ fun SettingScreen(
     }
     if (showLibrarySyncDialog) {
         LibrarySyncDialog(onDismiss = { showLibrarySyncDialog = false })
+    }
+    if (showAccountSyncDialog) {
+        AccountSyncDialog(onDismiss = { showAccountSyncDialog = false })
     }
     if (showYouTubeAccountDialog) {
         BasicAlertDialog(

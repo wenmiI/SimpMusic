@@ -20,6 +20,7 @@ import coil3.request.crossfade
 import com.maxrave.common.AppIdentity
 import com.maxrave.data.di.loader.loadAllModules
 import com.maxrave.domain.manager.DataStoreManager
+import com.maxrave.domain.repository.AccountSyncRepository
 import com.maxrave.domain.repository.LibrarySyncPhoneRepository
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.di.viewModelModule
@@ -93,7 +94,10 @@ class SimpMusicApplication :
             autoBackupScheduler.observeAndSchedule()
         }
 
-        val librarySyncScheduler = LibrarySyncScheduler(this, get<LibrarySyncPhoneRepository>())
+        val accountSync = get<AccountSyncRepository>()
+        // While the process lives, a signed-in device runs its own rounds; WorkManager covers the rest.
+        accountSync.start()
+        val librarySyncScheduler = LibrarySyncScheduler(this, get<LibrarySyncPhoneRepository>(), accountSync)
         applicationScope.launch {
             librarySyncScheduler.observeAndSchedule()
         }

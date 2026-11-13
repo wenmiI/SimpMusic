@@ -35,6 +35,7 @@ import com.maxrave.domain.data.model.intent.GenericIntent
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.domain.mediaservice.handler.ToastType
+import com.maxrave.domain.repository.AccountSyncRepository
 import com.maxrave.domain.repository.LibrarySyncPhoneRepository
 import com.maxrave.logger.Logger
 import com.maxrave.media3.di.setServiceActivitySession
@@ -64,6 +65,7 @@ class MainActivity : AppCompatActivity() {
     val mediaPlayerHandler by inject<MediaPlayerHandler>()
     val dataStoreManager: DataStoreManager by inject()
     private val librarySync: LibrarySyncPhoneRepository by inject()
+    private val accountSync: AccountSyncRepository by inject()
 
     private var mBound = false
     private var shouldUnbind = false
@@ -100,6 +102,7 @@ class MainActivity : AppCompatActivity() {
         if (lastLibrarySyncAt != 0L && now - lastLibrarySyncAt < 5 * 60_000L) return
         lastLibrarySyncAt = now
         lifecycleScope.launch { librarySync.syncNow() }
+        lifecycleScope.launch { accountSync.syncNow() }
     }
 
     override fun onStop() {

@@ -6,26 +6,29 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.maxrave.domain.repository.AccountSyncRepository
 import com.maxrave.domain.repository.LibrarySyncPhoneRepository
 import com.maxrave.logger.Logger
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import java.util.concurrent.TimeUnit
 
 /**
- * Runs a library sync round in the background while this phone is paired with a computer (#2663).
+ * Runs a library sync round in the background while this phone is paired with a computer (#2663),
+ * or signed in to a sync account.
  * Fifteen minutes is the shortest interval WorkManager allows; opening the app and "Sync now" fill in
  * between.
  */
 class LibrarySyncScheduler(
     private val context: Context,
     private val repository: LibrarySyncPhoneRepository,
+    private val account: AccountSyncRepository,
 ) {
     /** Call from a scope that lives as long as the application. */
     suspend fun observeAndSchedule() {
         var wasPaired = false
         repository.state
-            .map { it.isPaired }
+            .combine(account.state) { paired, signedIn -> paired.isPaired || signedIn.isSignedIn }
             .distinctUntilChanged()
             .collect { paired ->
                 val workManager = WorkManager.getInstance(context)
