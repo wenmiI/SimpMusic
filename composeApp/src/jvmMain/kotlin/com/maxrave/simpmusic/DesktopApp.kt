@@ -17,6 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.window.rememberWindowState
 import coil3.ImageLoader
 import coil3.annotation.ExperimentalCoilApi
@@ -448,77 +451,85 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
                     }
                 }
             }
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .then(
-                            if (!nativeTitleBar) {
-                                Modifier.clip(RoundedCornerShape(12.dp))
-                            } else {
-                                Modifier
-                            },
-                        ),
+            // TEST (fork): -Dsimpmusic.ui.scale=0.75 draws the whole window at that fraction of
+            // the display's density, so a small window gets the layout of a larger one.
+            val displayDensity = LocalDensity.current
+            val uiScale = remember { System.getProperty("simpmusic.ui.scale")?.toFloatOrNull()?.takeIf { it in 0.3f..3f } ?: 1f }
+            CompositionLocalProvider(
+                LocalDensity provides Density(displayDensity.density * uiScale, displayDensity.fontScale),
             ) {
-                if (!nativeTitleBar) {
-                    // The bar sits outside AppTheme, so the colours are resolved here from the
-                    // same stored setting AppTheme uses and handed down. Pure black / pure white
-                    // to match the window colour the shell paints behind the panels.
-                    val themeMode by sharedViewModel
-                        .getThemeMode()
-                        .collectAsState(DataStoreManager.THEME_MODE_DARK)
-                    val isDark = isDarkTheme(themeMode)
-                    CustomTitleBar(
-                        title = stringResource(Res.string.app_name),
-                        windowState = windowState,
-                        window = window,
-                        onCloseRequest = {
-                            isVisible = false
-                        },
-                        containerColor = if (isDark) Color.Black else Color.White,
-                        titleColor = if (isDark) Color.White else Color.Black,
-                    )
-                }
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (!nativeTitleBar) {
+                                    Modifier.clip(RoundedCornerShape(12.dp))
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                ) {
+                    if (!nativeTitleBar) {
+                        // The bar sits outside AppTheme, so the colours are resolved here from the
+                        // same stored setting AppTheme uses and handed down. Pure black / pure white
+                        // to match the window colour the shell paints behind the panels.
+                        val themeMode by sharedViewModel
+                            .getThemeMode()
+                            .collectAsState(DataStoreManager.THEME_MODE_DARK)
+                        val isDark = isDarkTheme(themeMode)
+                        CustomTitleBar(
+                            title = stringResource(Res.string.app_name),
+                            windowState = windowState,
+                            window = window,
+                            onCloseRequest = {
+                                isVisible = false
+                            },
+                            containerColor = if (isDark) Color.Black else Color.White,
+                            titleColor = if (isDark) Color.White else Color.Black,
+                        )
+                    }
 
-                val context = LocalPlatformContext.current
-                setSingletonImageLoaderFactory {
-                    lateinit var imageLoader: ImageLoader
-                    imageLoader =
-                        ImageLoader
-                            .Builder(context)
-                            .components {
-                                add(NetworkFirstInterceptor { imageLoader })
-                                add(
-                                    OkHttpNetworkFetcherFactory(
-                                        callFactory = {
-                                            OkHttpClient()
-                                        },
-                                    ),
-                                )
-                            }.diskCachePolicy(CachePolicy.ENABLED)
-                            .networkCachePolicy(CachePolicy.ENABLED)
-                            .diskCache(
-                                DiskCache
-                                    .Builder()
-                                    .directory(FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "image_cache")
-                                    .maxSizeBytes(512L * 1024 * 1024)
-                                    .build(),
-                            ).crossfade(true)
-                            // CrossfadePainter otherwise sizes itself as max(placeholder, image) once and keeps it,
-                            // so a square holder over a wide banner leaves the banner zoomed after the fade.
-                            .preferEndFirstIntrinsicSize(true)
-                            .build()
-                    imageLoader
+                    val context = LocalPlatformContext.current
+                    setSingletonImageLoaderFactory {
+                        lateinit var imageLoader: ImageLoader
+                        imageLoader =
+                            ImageLoader
+                                .Builder(context)
+                                .components {
+                                    add(NetworkFirstInterceptor { imageLoader })
+                                    add(
+                                        OkHttpNetworkFetcherFactory(
+                                            callFactory = {
+                                                OkHttpClient()
+                                            },
+                                        ),
+                                    )
+                                }.diskCachePolicy(CachePolicy.ENABLED)
+                                .networkCachePolicy(CachePolicy.ENABLED)
+                                .diskCache(
+                                    DiskCache
+                                        .Builder()
+                                        .directory(FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "image_cache")
+                                        .maxSizeBytes(512L * 1024 * 1024)
+                                        .build(),
+                                ).crossfade(true)
+                                // CrossfadePainter otherwise sizes itself as max(placeholder, image) once and keeps it,
+                                // so a square holder over a wide banner leaves the banner zoomed after the fade.
+                                .preferEndFirstIntrinsicSize(true)
+                                .build()
+                        imageLoader
+                    }
+                    App(
+                        showDesktopNotificationPermissionDialog = showNotificationPermissionDialog,
+                        onDismissDesktopNotificationPermissionDialog =
+                            desktopNotificationManager::dismissPermissionDialog,
+                        onOpenDesktopNotificationSettings =
+                            desktopNotificationManager::openNotificationSettings,
+                    )
+                    LibrarySyncLoginPrompt(sharedViewModel)
+                    ToastHost()
                 }
-                App(
-                    showDesktopNotificationPermissionDialog = showNotificationPermissionDialog,
-                    onDismissDesktopNotificationPermissionDialog =
-                        desktopNotificationManager::dismissPermissionDialog,
-                    onOpenDesktopNotificationSettings =
-                        desktopNotificationManager::openNotificationSettings,
-                )
-                LibrarySyncLoginPrompt(sharedViewModel)
-                ToastHost()
             }
         }
 
