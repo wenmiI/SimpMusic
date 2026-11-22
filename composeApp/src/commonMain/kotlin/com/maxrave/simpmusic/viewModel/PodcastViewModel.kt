@@ -13,6 +13,7 @@ import com.maxrave.domain.utils.Resource
 import com.maxrave.domain.utils.toTrack
 import com.maxrave.simpmusic.expect.shareUrl
 import com.maxrave.simpmusic.viewModel.base.BaseViewModel
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -256,7 +257,7 @@ class PodcastViewModel(
         viewModelScope.launch {
             podcastRepository.updatePodcastInLibraryNow(id).collectLatest {
                 // Podcast đã được cập nhật trong thư viện
-                log("Podcast $id updated in library at ${System.currentTimeMillis()}")
+                log("Podcast $id updated in library at ${Clock.System.now().toEpochMilliseconds()}")
             }
         }
     }

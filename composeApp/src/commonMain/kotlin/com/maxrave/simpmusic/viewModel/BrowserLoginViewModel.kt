@@ -47,8 +47,18 @@ class BrowserLoginViewModel(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                val site = error.stackTrace.firstOrNull { it.className.startsWith("com.maxrave.data.browserlogin.") }
-                val location = site?.let { "${it.className}.${it.methodName}:${it.lineNumber}" } ?: "unknown"
+                // Only the frame, never the trace: "at a.b.C.d(C.kt:12)" becomes "a.b.C.d:12".
+                val location =
+                    error
+                        .stackTraceToString()
+                        .lineSequence()
+                        .map { it.trim().removePrefix("at ") }
+                        .firstOrNull { it.startsWith("com.maxrave.data.browserlogin.") }
+                        ?.let { frame ->
+                            val method = frame.substringBefore('(')
+                            val line = frame.substringAfterLast(':', "").substringBefore(')')
+                            if (line.isEmpty()) method else "$method:$line"
+                        } ?: "unknown"
                 // Never pass the throwable/message: native file errors can contain private paths.
                 log("Browser discovery failed: ${error::class.simpleName} at $location", LogLevel.WARN)
                 _state.value = _state.value.copy(loading = false, error = BrowserLoginFailure.INVALID_DATA)

@@ -52,6 +52,7 @@ include(
     ":lyricsService",
     ":media-jvm",
     ":media-jvm-ui",
+    ":media-ios",
     ":media3",
     ":media3-ui",
     ":crashlytics",
@@ -86,6 +87,7 @@ project(":loginSync").projectDir = File(serviceDir, "loginSync")
 // media modules
 project(":media-jvm").projectDir = File(mediaDir, "media-jvm")
 project(":media-jvm-ui").projectDir = File(mediaDir, "media-jvm-ui")
+project(":media-ios").projectDir = File(mediaDir, "media-ios")
 project(":media3").projectDir = File(mediaDir, "media3")
 project(":media3-ui").projectDir = File(mediaDir, "media3-ui")
 

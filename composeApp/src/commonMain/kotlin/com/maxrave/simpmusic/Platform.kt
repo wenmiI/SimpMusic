@@ -8,8 +8,11 @@ sealed class Platform {
     fun osName(): String = when (this) {
         Android -> "android"
         iOS -> "iOS"
-        Desktop -> System.getProperty("os.name") ?: "jvm"
+        Desktop -> desktopOsName()
     }
 }
 
 expect fun getPlatform(): Platform
+
+/** The desktop OS by name; only the JVM ever answers, the other platforms are never Desktop. */
+internal expect fun desktopOsName(): String

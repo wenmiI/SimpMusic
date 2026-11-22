@@ -1,0 +1,51 @@
+# XcodeGen spec for the iOS app: `xcodegen generate` (in this folder, on a Mac) writes
+# SimpMusic.xcodeproj. The project itself is not committed; this file is the source of truth.
+name: SimpMusic
+options:
+  bundleIdPrefix: com.maxrave
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    MARKETING_VERSION: "2.5.0"
+    CURRENT_PROJECT_VERSION: "62"
+targets:
+  SimpMusic:
+    type: application
+    platform: iOS
+    sources:
+      - path: iosApp
+    info:
+      path: iosApp/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.maxrave.simpmusic
+        PRODUCT_NAME: SimpMusic
+        INFOPLIST_FILE: iosApp/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_STYLE: Automatic
+        # The Kotlin framework comes from Gradle (the script below), which writes outside the
+        # sandbox Xcode gives build scripts by default.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LDFLAGS: ["$(inherited)", "-framework", "ComposeApp"]
+    preBuildScripts:
+      - name: Compile Kotlin framework
+        basedOnDependencyAnalysis: false
+        # FOSS unless SIMPMUSIC_FULL_BUILD=true: a Full build wants the Last.fm and Discord keys in
+        # local.properties, and a sideloaded build usually has none.
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode -PisFullBuild="${SIMPMUSIC_FULL_BUILD:-false}"
+schemes:
+  SimpMusic:
+    build:
+      targets:
+        SimpMusic: all
+    run:
+      config: Debug
+    archive:
+      config: Release

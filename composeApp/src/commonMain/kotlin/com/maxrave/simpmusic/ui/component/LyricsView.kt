@@ -79,6 +79,7 @@ import org.koin.compose.koinInject
 import androidx.navigation.NavController
 import com.maxrave.domain.data.model.streams.TimeLine
 import com.maxrave.simpmusic.extension.LyricsStagger
+import com.maxrave.simpmusic.extension.TextBidi
 import com.maxrave.simpmusic.extension.ParsedRichSyncLine
 import com.maxrave.simpmusic.extension.animateScrollAndAnchorItemTop
 import com.maxrave.simpmusic.extension.animateScrollAndCentralizeItem
@@ -90,7 +91,6 @@ import com.maxrave.simpmusic.viewModel.SharedViewModel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
-import java.text.Bidi
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.sqrt
@@ -1080,9 +1080,7 @@ private fun AnimatedWord(
 ) {
     val wordBidi =
         remember(word, lineDirection) {
-            val fallback =
-                if (lineDirection == LayoutDirection.Rtl) Bidi.DIRECTION_DEFAULT_RIGHT_TO_LEFT else Bidi.DIRECTION_DEFAULT_LEFT_TO_RIGHT
-            Bidi(word, fallback)
+            TextBidi(word, fallbackLeftToRight = lineDirection != LayoutDirection.Rtl)
         }
     val wordDirection = if (wordBidi.baseIsLeftToRight()) TextDirection.Ltr else TextDirection.Rtl
     val style =

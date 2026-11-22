@@ -6,12 +6,12 @@
 
 ## 📋 Project Overview
 
-**SimpMusic** is a FOSS (Free and Open Source Software) YouTube Music client for Android and Desktop, built with Compose Multiplatform.
+**SimpMusic** is a FOSS (Free and Open Source Software) YouTube Music client for Android, Desktop and iOS, built with Compose Multiplatform.
 
 ### Main Purpose
 - Stream music from YouTube Music and YouTube for free, ad-free, with background playback
 - Provide advanced features like Spotify Canvas, AI song suggestions, synced lyrics
-- Support both Android and Desktop (Windows, macOS, Linux)
+- Support Android, Desktop (Windows, macOS, Linux) and iOS (see `iosApp/README.md`)
 
 ### Basic Information
 - **Package name**: `com.maxrave.simpmusic`
@@ -56,7 +56,7 @@
 
 #### 1. **composeApp/**
 - **Shared Compose Multiplatform module** - main module containing shared code
-- Supports: Android, Desktop (JVM), iOS (future)
+- Supports: Android, Desktop (JVM), iOS (`iosArm64`, `iosSimulatorArm64`; `iosMain/` holds the iOS actuals, and `iosApp/` the Xcode shell that hosts it)
 - Contains all UI (Compose) and business logic
 - Source sets:
   - `commonMain/`: Shared code for all platforms
@@ -100,6 +100,7 @@ Contains core modules organized by functionality:
 - **media3-ui/**: Media3 UI components
 - **media-jvm/**: JVM media playback (libmpv via JNA — replaced VLCJ, which replaced GStreamer post-1.0.4)
 - **media-jvm-ui/**: JVM media UI components
+- **media-ios/**: iOS playback (AVPlayer behind `MediaPlayerInterface` in `AvPlayerAdapter`, the AVAudioSession, downloads, `IosPlayerModule`). Driven by the Desktop handler, which `core/data/src/nonAndroidMain` shares with iOS
 
 ##### **core/service/**
 Service modules:
@@ -110,7 +111,7 @@ Service modules:
 - **autoEqService/**: AutoEq headphone correction profiles (index + fixed-band curves)
 - **lyricsService/**: Lyrics fetching (LRCLIB, SimpMusic Lyrics, BetterLyrics)
 - **listenTogether/**: shared listening rooms, wire-compatible with Metrolist (`MetrolistGroup/metroproto`)
-- **loginSync/**: the QR-paired transport that moves sign-ins from the Android app to the Desktop app (Ktor client on the phone, one-shot Ktor CIO server on the Desktop, AES-256-GCM). Android + JVM targets only; carries opaque bytes — the data layer decides what they mean. Also carries library sync's long-lived paired channel (`PairedSyncWire`/`PairedSyncClient`/`PairedSyncServer`, fixed port 48517)
+- **loginSync/**: the QR-paired transport that moves sign-ins from the Android app to the Desktop app (Ktor client on the phone, one-shot Ktor CIO server on the Desktop, AES-256-GCM). Its QR pairing (login sync, library sync) is in the `jvmShared` source set, Android + JVM only (javax.crypto); the sync account's channel (`AccountSyncWire`/`AccountSyncClient`) is commonMain and builds for iOS too. Carries opaque bytes — the data layer decides what they mean. Also carries library sync's long-lived paired channel (`PairedSyncWire`/`PairedSyncClient`/`PairedSyncServer`, fixed port 48517)
 - **kizzy/**: Discord Rich Presence for FOSS builds (the user's own token, from a WebView login on Android or pasted on Desktop). Left untouched by the OAuth work below
 - **discord/**: Discord Rich Presence over OAuth for Full builds (package `org.simpmusic.discord`): PKCE login, a Ktor gateway client that identifies with a Bearer token, and the presence itself. Used instead of kizzy whenever the build carries a Discord application id
 - **ktorExt/**: Ktor extensions for networking
@@ -517,7 +518,7 @@ When working with this project:
 
 1. **Always check layer dependencies**: Don't violate Clean Architecture rules
 2. **Use existing patterns**: Review current code to follow established patterns
-3. **Platform-aware**: Code in `commonMain` must work for both Android and Desktop
+3. **Platform-aware**: Code in `commonMain` must work on Android, Desktop and iOS: no `java.*`, no `String.format`, no `System.*` (see the iOS entry in the changelog)
 4. **Test thoroughly**: Especially critical for media playback and network code
 5. **Consider privacy**: FOSS version must NOT have tracking
 6. **Check external API stability**: YouTube Music API may change at any time
@@ -881,7 +882,7 @@ if (getPlatform() == Platform.Android) {
   - **Only sign-ins travel, by allowlist**: YouTube (every `GoogleAccountEntity` row — each carries its own cookie in `cache` and `netscapeCookie` — plus the current `cookie`/`page_id`/`auth_user`/`data_sync_id`/`logged_in`), Spotify `sp_dc`, the Last.fm session (Discord was dropped on 2026-11-03: the Desktop, a Full build, logs in to Discord through its own browser, and a FOSS phone's token would not work there). No settings, no AI keys, no proxy credentials. The picker lists service names only, never account names.
   - **Room before DataStore on restore.** `CommonRepositoryImpl` rewrites `ytdlp-cookie.txt` from the *used* account the moment the DataStore cookie changes, so writing the cookie first writes the previous account's file with no error anywhere. A new `sp_dc` also clears Spotify's personal token, as the logout does.
   - **The key travels on the screen, never over the network.** Every body is AES-256-GCM (`nonce || ciphertext || tag`) with `simpmusic-login-sync/v1/<kind>/<request|reply>` as associated data, so a hello cannot be replayed as a login bundle and a request cannot pass as a reply. The name coming back sealed is what proves the machine answering is the one showing the QR.
-  - **composeApp's `commonMain` can use the JDK** (it targets only Android and JVM — `Platform.kt` already calls `System.getProperty`), and the loginSync service targets only Android + JVM for the same reason, so its cipher is plain javax.crypto in commonMain. Its server handlers are suspend functions, so the restore is a plain call. `core/service/loginSync/src/jvmTest` has a real client↔server round trip on 127.0.0.1 — hello, payload, reply, then the spent code refused. `stop()` / `disconnect()` are deliberately NOT suspend: callers are teardown paths whose scope is already being cancelled, so the repository runs them on its own scope, and the server stop is `NonCancellable` so a cancelled caller cannot leave the port open. **Do not go back to JDK `com.sun.net.httpserver`**: with its default executor every handler runs on the dispatcher thread, and `HttpServer.stop()` joins that thread — the first version called it from `onDispose` on the UI thread while a restore was in flight, and the desktop app froze.
+  - *(Superseded 2026-11-22: composeApp builds for iOS now, so its `commonMain` can no longer use the JDK, and loginSync's pairing moved to its `jvmShared` source set, where the cipher is still plain javax.crypto.)* composeApp's `commonMain` could use the JDK while it targeted only Android and JVM, and the loginSync service targeted only Android + JVM for the same reason. Its server handlers are suspend functions, so the restore is a plain call. `core/service/loginSync/src/jvmTest` has a real client↔server round trip on 127.0.0.1 — hello, payload, reply, then the spent code refused. `stop()` / `disconnect()` are deliberately NOT suspend: callers are teardown paths whose scope is already being cancelled, so the repository runs them on its own scope, and the server stop is `NonCancellable` so a cancelled caller cannot leave the port open. **Do not go back to JDK `com.sun.net.httpserver`**: with its default executor every handler runs on the dispatcher thread, and `HttpServer.stop()` joins that thread — the first version called it from `onDispose` on the UI thread while a restore was in flight, and the desktop app froze.
   - **CameraX + ZXing, not ML Kit or Google's code scanner** — both are proprietary and F-Droid refuses them. `CAMERA` is paired with `uses-feature android.hardware.camera required="false"`; without it the permission implies a required camera and hides the app from TVs and cars.
   - **Android UI is a bottom sheet** in the app's own sheet style (transparent `ModalBottomSheet` + `Card` on `rememberSurfaceDarkColors()`): header with a close button, a square rounded viewfinder, and in-sheet states for camera permission — ask, and once denied with "don't ask again" (`shouldShowRequestPermissionRationale` false *after* a denial) an *Open settings* button, re-checked on resume. Trust and service picking stay popups over the sheet. **`PreviewView` must use `ImplementationMode.COMPATIBLE`**: the default SurfaceView ignores Compose clipping, so the rounded viewfinder renders with square corners.
   - **Android 17 local network permission**: `ACCESS_LOCAL_NETWORK` is declared in the manifest and asked for together with the camera on every Android 17+ device, whatever the targetSdk — without it a LAN connection does not fail, it times out (element-x-android#7694). *Corrected 2026-10-04*: the request used to wait for targetSdk 37, because apps below 37 get the permission implicitly with INTERNET. They do, but only when they do not declare it themselves (AOSP `ParsingPackageUtils.convertSplitPermissions`; Google's own page says not to declare it below 37), and ours declared it — so on Android 17 Login Sync timed out on every phone until the user allowed **Nearby devices** by hand. Ping working both ways proves nothing here: the block is per app. A custom AI base URL asks for it when saved, but only when the URL lands on the local network (`rememberLocalNetworkPermission`: a `.local` name, or — after a DNS lookup off the main thread — an address in AOSP's `IPV4_LOCAL_PREFIXES` 169.254/16, 100.64/10, 10/8, 172.16/12, 192.168/16, or IPv6 link-local/unique-local). A proxy on the home network deliberately asks nothing and works only once the user has granted Nearby devices.
@@ -1193,6 +1194,15 @@ if (getPlatform() == Platform.Android) {
 
 - **Desktop "Wallpaper" theme colour reads a matugen palette (2026-11-13, fork `account-sync`)**: the JVM `platformDynamicColorScheme` was `null`, so Desktop never offered Wallpaper. It now reads a JSON of every Material 3 role, dark and light (`{"dark": {"primary": "#…", …}, "light": {…}}`, matugen's snake_case role names), from `-Dsimpmusic.matugen.colors`, `$SIMPMUSIC_MATUGEN_COLORS` or `~/.cache/matugen/simpmusic-colors.json`, written by a matugen template. The file is polled every 2 s by mtime, so a new wallpaper re-themes the running app; a half-written file fails to parse and the previous palette stays. Wallpaper is offered only while the file exists. Roles the file omits keep Material's baseline. With Wallpaper on, the immersive (force-dark) screens take the palette's dark half instead of the default seed, and the Desktop shell's panels take `colorScheme.surface` instead of the fixed `desktopPanelDark` (`LocalWallpaperScheme`), so the sidebar and pages wear the palette too; the window stays pure black.
 
+- **iOS (2026-11-22, fork branch `ios`, NOT YET LINKED OR RUN — no Mac was available)**: the whole app compiles for `iosArm64` and `iosSimulatorArm64` (klibs build on Linux), and `iosApp/` hosts it: SwiftUI entry, `Info.plist`, asset catalog and an XcodeGen `project.yml`; `.github/workflows/ios.yml` builds an unsigned `.ipa` on a macOS runner for SideStore/AltStore. `iosApp/README.md` says what works and what does not.
+  - **Common code had grown JVM-only API** while nothing compiled it for iOS: `String.format`, `MessageDigest`, `java.time`, `java.io.File`, `java.text.Bidi`, `UUID`, `System.currentTimeMillis`, `removeIf`, `localizedMessage`, kotlin-reflect. Replaced with padding/okio hashing/`kotlin.time`/okio files/`TextBidi` (`extension/TextBidi.kt`)/`kotlin.uuid`/`removeAll`. `Dispatchers.IO` in common code needs `import kotlinx.coroutines.IO`. Upstream's per-target iOS dirs (`iosArm64Main`, `iosSimulatorArm64Main`, `iosX64Main`) duplicated `iosMain` and were deleted. Room needs `@ConstructedBy` on native.
+  - **Playback**: `core/media/media-ios` (`AvPlayerAdapter`, MpvPlayerAdapter's playlist/shuffle/repeat rules copied; no crossfade/EQ/effects/8D/waveform/pitch). `JvmMediaPlayerHandlerImpl` moved to `core/data/src/nonAndroidMain` (KGP hierarchy group `nonAndroid` = jvm + ios) and is iOS's handler too; its NPYC and macOS Now Playing calls go through `SystemMediaControls` (Desktop actual: the same calls at the same moments; iOS: `MPNowPlayingInfoCenter`/`MPRemoteCommandCenter`). The audio session activates on the first play, never at launch.
+  - **Streams without PipePipe**: `LocalStreamResolver` (scraper commonMain) asks `/player` as PipePipe's TV clients (`TVHTML5_SIMPLY_V1` first, then `TVHTML5_TIZEN`, versions read off PipePipe's bytecode) with an anonymous `visitorData`, and solves every signature and `n` with `FaradayCipherEngine` (QuickJS on a 32 MB-stack `NSThread`; iOS's 512 KB default overflows like the JVM's 1 MB). Without `visitorData` every TV request is `LOGIN_REQUIRED`. Checked by `LocalStreamResolverLiveTest` (jvmTest, runs only with `SIMPMUSIC_LIVE_TESTS=1`): on 2026-11-22 tv_simply's AAC URLs served 1 MB in under 0.2 s, while tv_samsung's failed a plain ranged GET. Requests are signed out, so Premium formats never come back.
+  - **AVPlayer has no Opus and cannot join two streams**: `playableAudioItag`/`canPlayAudioMimeType`/`playableVideoItag` (`StreamPlatform.kt`, identity on Android/Desktop) map iOS to AAC 140/141 and to the muxed 360p stream 18. A video resolved to 18 is now stored under the `Video` key on every platform (it used to replace the song's audio row). The `range=` query StreamRepositoryImpl appends must be stripped for AVPlayer (`forAvPlayer()`), which refuses a progressive file without byte-range support. iOS downloads the same AAC stream itself (`IosDownloadHandler`), because `YouTube.download` saves the highest bitrate, which is Opus.
+  - **Sync account works on iOS**; QR pairing does not (javax.crypto AES-GCM has no public iOS counterpart outside Swift's CryptoKit). loginSync's account channel gzips through okio now; `KtorAccountTransport` is one commonMain file. iOS binds a never-paired `LibrarySyncRepository` for Settings.
+  - **iOS-only UI**: actuals for every composeApp `expect` (UIKit/PhotosUI/WebKit/AVKit), the bottom bar re-laid out with a plain `Layout` (`LiquidGlassAppBottomNavigationBar.ios.kt`, generated from the Android file: constraintlayout-compose is Android-only — keep the two in step), WKWebView login with a cookie snapshot taken on every finished navigation (WKHTTPCookieStore is async, the login screens ask synchronously), a root `AppViewController` that owns the status-bar style, and a stored-entry zip writer for backups (okio reads zips but cannot write them). `LiquidGlassTabBar` moved from androidMain to commonMain (its only Android API was `SystemClock`).
+  - Not verified here: the Kotlin/Native link, the Xcode build, anything at runtime, and the Android build of the hierarchy changes (no accepted SDK licence on the machine). `BrowserCookieTest.selectsHeaderCookiesByHostPathAndExpiry` fails on JVM before and after this work (cookie order), untouched.
+
 ## 🔄 CLAUDE.md Auto-Update Rule (MANDATORY)
 
 After completing any of the following types of changes, the AI agent **MUST** update this CLAUDE.md file:
@@ -1217,6 +1227,6 @@ After completing any of the following types of changes, the AI agent **MUST** up
 
 *This document helps AI Agents quickly understand the SimpMusic project. Update regularly when there are major changes to architecture or structure.*
 
-**Last updated**: 2026-11-12
+**Last updated**: 2026-11-22
 **Project version**: Check latest release on GitHub
 **Maintained by**: maxrave-dev and contributors

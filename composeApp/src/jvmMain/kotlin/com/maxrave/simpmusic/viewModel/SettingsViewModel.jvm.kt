@@ -7,7 +7,6 @@ import com.maxrave.data.io.getHomeFolderPath
 import com.maxrave.domain.repository.CacheRepository
 import com.maxrave.domain.repository.CommonRepository
 import com.maxrave.logger.Logger
-import com.maxrave.simpmusic.extension.zipOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -23,6 +22,7 @@ import java.io.FileOutputStream
 import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 import kotlin.system.exitProcess
 
 actual suspend fun calculateDataFraction(cacheRepository: CacheRepository): SettingsStorageSectionFraction? = null
@@ -81,7 +81,7 @@ actual suspend fun backupNative(
     backupDownloaded: Boolean,
 ) {
     FileOutputStream(File(uri.toString())).use {
-        it.buffered().zipOutputStream().use { outputStream ->
+        ZipOutputStream(it.buffered()).use { outputStream ->
             File(getHomeFolderPath(listOf(".simpmusic")), "$SETTINGS_FILENAME.preferences_pb")
                 .inputStream()
                 .buffered()

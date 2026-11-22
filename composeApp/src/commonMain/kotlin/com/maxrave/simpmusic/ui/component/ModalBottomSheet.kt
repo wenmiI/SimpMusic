@@ -144,6 +144,7 @@ import com.maxrave.simpmusic.expect.ui.persistPickedImage
 import com.maxrave.simpmusic.expect.ui.photoPickerResult
 import com.maxrave.simpmusic.extension.displayNameRes
 import com.maxrave.simpmusic.extension.greyScale
+import com.maxrave.simpmusic.extension.toOneDecimalString
 import com.maxrave.simpmusic.ui.icon.AccessAlarm
 import com.maxrave.simpmusic.ui.icon.Add
 import com.maxrave.simpmusic.ui.icon.AddCircleOutline
@@ -2194,7 +2195,7 @@ fun PlaybackSpeedPitchBottomSheet(
                         )
                     }
                     Text(
-                        text = "x${String.format("%.1f", playbackSpeed)}",
+                        text = "x${playbackSpeed.toOneDecimalString()}",
                         style = typo().titleMedium,
                         color = rememberSurfaceDarkColors().subtitle,
                         modifier = Modifier.widthIn(min = 60.dp),

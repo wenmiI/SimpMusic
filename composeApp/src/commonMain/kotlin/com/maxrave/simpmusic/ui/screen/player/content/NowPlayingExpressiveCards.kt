@@ -86,6 +86,7 @@ import com.maxrave.simpmusic.extension.LeftToRight
 import com.maxrave.simpmusic.extension.parseTimestampToMilliseconds
 import com.maxrave.simpmusic.extension.mouseDragScroll
 import com.maxrave.simpmusic.extension.smoothScrimBrush
+import com.maxrave.simpmusic.extension.toGroupedString
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.AIBadge
 import com.maxrave.simpmusic.ui.component.DescriptionView
@@ -848,7 +849,7 @@ internal fun ExpressiveBelowTheFold(
                         text =
                             stringResource(
                                 Res.string.view_count,
-                                "%,d".format(state.screenData.songInfoData?.viewCount),
+                                state.screenData.songInfoData?.viewCount.toGroupedString(),
                             ),
                         style = typo().labelMedium,
                         color = Color.White,

@@ -57,15 +57,16 @@ kotlin {
         }
     }
 
-//    listOf(
-//        iosArm64(),
-//        iosSimulatorArm64()
-//    ).forEach { iosTarget ->
-//        iosTarget.binaries.framework {
-//            baseName = "ComposeApp"
-//            isStatic = true
-//        }
-//    }
+    // The iOS app (iosApp/) links this as a static framework; see iosApp/README.md.
+    listOf(
+        iosArm64(),
+        iosSimulatorArm64(),
+    ).forEach { iosTarget ->
+        iosTarget.binaries.framework {
+            baseName = "ComposeApp"
+            isStatic = true
+        }
+    }
 
     jvm()
 
@@ -75,9 +76,11 @@ kotlin {
             val koinBom = project.dependencies.platform(libs.koin.bom)
             implementation(composeBom)
             implementation(koinBom)
-            implementation(libs.commons.io)
         }
         androidMain.dependencies {
+            implementation(libs.ui.tooling.preview)
+            implementation(libs.commons.io)
+            implementation(libs.coil.network.okhttp)
             api(project.dependencies.platform(libs.koin.bom))
             api(libs.koin.android)
             implementation(libs.koin.androidx.compose)
@@ -123,8 +126,6 @@ kotlin {
             implementation(libs.compose.material3.adaptive)
             implementation(libs.compose.material.ripple)
 
-            implementation(libs.ui.tooling.preview)
-
             // Other module
             api(projects.common)
             api(projects.domain)
@@ -147,9 +148,11 @@ kotlin {
             // Kotlin Serialization
             implementation(libs.kotlinx.serialization.json)
 
+            // Files from common code (logs, caches) — java.io is not there on iOS
+            implementation(libs.okio)
+
             // Coil
             api(libs.coil.compose)
-            api(libs.coil.network.okhttp)
             api(libs.kmpalette.core)
             api(libs.kmpalette.network)
             implementation(libs.materialkolor)
@@ -189,12 +192,20 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }
+        iosMain.dependencies {
+            implementation(libs.coil.network.ktor3)
+            implementation(libs.ktor.client.darwin)
+            // The player the video views draw (AvPlayerAdapter), as jvmMain takes media-jvm-ui's.
+            implementation(projects.mediaIos)
+        }
         jvmMain.dependencies {
             // Desktop app entry (main.kt), jpackage/Conveyor
             // packaging, and tray icon live in :desktopApp per the
             // JetBrains 2026 KMP default structure. This module keeps the
             // shared JVM UI + expect/actuals and their direct dependencies.
             implementation(compose.desktop.currentOs)
+            implementation(libs.commons.io)
+            implementation(libs.coil.network.okhttp)
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.sentry.jvm)
             implementation(libs.native.tray)

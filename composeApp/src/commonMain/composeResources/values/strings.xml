@@ -961,6 +961,7 @@
     <string name="login_sync_unreachable">Couldn't reach the computer. Make sure your phone is on the same network or tailnet, then try again.</string>
     <string name="login_sync_code_expired">The code on your computer has expired. Show a new one and scan again.</string>
     <string name="login_sync_failed">Something went wrong. Please try again.</string>
+    <string name="ios_pairing_unavailable">Pairing by QR code is not on iPhone yet. Use Sync account to share your library and sign-ins with your other devices.</string>
     <string name="library_sync_title">Library sync</string>
     <string name="library_sync_not_paired_desktop">Not paired · Share likes, artists, albums, podcasts, playlists and history with your phone</string>
     <string name="library_sync_not_paired_android">Not paired · Share likes, artists, albums, podcasts, playlists and history with your computer</string>

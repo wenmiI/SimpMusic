@@ -1,6 +1,5 @@
 package com.maxrave.simpmusic.ui.component
 
-import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
@@ -62,6 +61,7 @@ import com.kyant.backdrop.shadow.Shadow
 import com.maxrave.simpmusic.expect.ui.PlatformBackdrop
 import com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme
 import com.maxrave.simpmusic.ui.theme.typo
+import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
@@ -74,6 +74,9 @@ import kotlin.math.roundToInt
 import kotlin.math.sign
 
 private val CapsuleShape = RoundedCornerShape(percent = 50)
+
+// Velocity timestamps: only their differences matter, so any monotonic origin will do.
+private val velocityClock = TimeSource.Monotonic.markNow()
 private val TabWidth = 96.dp
 internal val BarHeight = 64.dp
 private val BlobHeight = 56.dp
@@ -368,7 +371,7 @@ private fun LiquidGlassTab(
  * range, the drag [velocity] (for squash/stretch), a [pressProgress] (rest → lifted
  * glass) and decoupled [scaleX]/[scaleY] springs. Project-local port of Kyant's
  * catalog `DampedDragAnimation` (uses [withFrameNanos] for `awaitFrame` and
- * [SystemClock] for velocity timestamps).
+ * a monotonic clock for velocity timestamps).
  */
 class DampedDragAnimation(
     private val animationScope: CoroutineScope,
@@ -469,7 +472,7 @@ class DampedDragAnimation(
     }
 
     private fun updateVelocity() {
-        velocityTracker.addPosition(SystemClock.uptimeMillis(), Offset(value, 0f))
+        velocityTracker.addPosition(velocityClock.elapsedNow().inWholeMilliseconds, Offset(value, 0f))
         val targetVelocity =
             velocityTracker.calculateVelocity().x / (valueRange.endInclusive - valueRange.start)
         animationScope.launch { velocityAnimation.animateTo(targetVelocity, velocityAnimationSpec) }

@@ -125,6 +125,7 @@ import com.maxrave.simpmusic.extension.getScreenSizeInfo
 import com.maxrave.simpmusic.extension.isElementVisible
 import com.maxrave.simpmusic.extension.parseTimestampToMilliseconds
 import com.maxrave.simpmusic.extension.smoothScrimBrush
+import com.maxrave.simpmusic.extension.toGroupedString
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.LyricText
 import com.maxrave.simpmusic.ui.component.AIBadge
@@ -1591,7 +1592,7 @@ fun NowPlayingContentSpotify(
                                         text =
                                             stringResource(
                                                 Res.string.view_count,
-                                                "%,d".format(state.screenData.songInfoData?.viewCount),
+                                                state.screenData.songInfoData?.viewCount.toGroupedString(),
                                             ),
                                         style = typo().labelMedium,
                                         color = Color.White,
