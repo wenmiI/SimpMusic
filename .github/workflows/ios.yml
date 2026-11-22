@@ -13,7 +13,9 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-15
+    # Intel for its 14 GB: the release link of the Kotlin framework ran out of a 5 GB heap on the
+    # 7 GB arm64 runner (2026-11-22). Kotlin/Native cross-compiles for arm64 devices from either.
+    runs-on: macos-15-intel
     defaults:
       run:
         shell: bash
@@ -28,6 +30,12 @@ jobs:
           java-version: 21
           distribution: "microsoft"
           cache: 'gradle'
+
+      - name: Give Gradle room for the framework link
+        # Appended, so it replaces the 5 GB of gradle.properties for this build only.
+        run: |
+          echo "" >> ./gradle.properties
+          echo "org.gradle.jvmargs=-Xmx10g -XX:+UseParallelGC -Dfile.encoding=UTF-8" >> ./gradle.properties
 
       - name: Pick the newest Xcode
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)" && xcodebuild -version

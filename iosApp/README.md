@@ -16,7 +16,9 @@ the app.
 4. Pick your team under Signing & Capabilities and run.
 
 The first build runs `./gradlew :composeApp:embedAndSignAppleFrameworkForXcode` from Xcode's
-"Compile Kotlin framework" phase and takes several minutes. It builds the FOSS flavour; set
+"Compile Kotlin framework" phase and takes several minutes. Its release link needs more than the
+5 GB heap `gradle.properties` gives Gradle (it ran out at 5 GB on CI): raise `org.gradle.jvmargs`
+to `-Xmx10g` or so on a Mac with the memory for it. It builds the FOSS flavour; set
 `SIMPMUSIC_FULL_BUILD=true` in the scheme's environment for a Full build (Last.fm, Discord OAuth),
 which wants the same keys in `local.properties` as the other platforms.
 
