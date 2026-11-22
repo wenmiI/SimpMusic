@@ -483,6 +483,13 @@ private val timestampFormat = LocalDateTime.Format { byUnicodePattern("yyyy-MM-d
 private fun formatLocalTimestamp(epochMillis: Long): String =
     Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault()).format(timestampFormat)
 
+/**
+ * Whether this platform's player runs its audio through an engine the app controls: Media3's sink
+ * on Android, mpv's filter chain on Desktop. iOS's AVPlayer has none, so the equalizer, delay,
+ * reverb, 8D and crossfade would be switches that do nothing there; they are not shown.
+ */
+private fun hasAudioEngine(): Boolean = getPlatform() != Platform.iOS
+
 @OptIn(
     ExperimentalMaterial3Api::class,
     ExperimentalCoilApi::class,
@@ -745,46 +752,49 @@ fun SettingScreen(
                     title = stringResource(Res.string.login_sync_section),
                     modifier = Modifier.onSizeChanged { devicesGroupHeightPx = it.height },
                 ) {
-                    val syncPeer = librarySyncState.peers.firstOrNull()
-                    SettingItem(
-                        title =
-                            stringResource(
-                                if (getPlatform() == Platform.Android) Res.string.login_sync_android_title else Res.string.login_sync_desktop_title,
-                            ),
-                        subtitle =
-                            when {
-                                getPlatform() != Platform.Android -> stringResource(Res.string.login_sync_desktop_description)
-                                syncPeer != null -> stringResource(Res.string.library_sync_send_logins_paired, syncPeer.name)
-                                else -> stringResource(Res.string.login_sync_android_description)
-                            },
-                        onClick = { showLoginSyncDialog = true },
-                    )
-                    SettingItem(
-                        title = stringResource(Res.string.library_sync_title),
-                        subtitle =
-                            when {
-                                librarySyncState.problem == LibrarySyncProblem.WINDOWS_PUBLIC_NETWORK -> {
-                                    stringResource(Res.string.library_sync_windows_public)
-                                }
+                    // The QR pairing is Android and Desktop only; on iOS both rows would only say so.
+                    if (getPlatform() != Platform.iOS) {
+                        val syncPeer = librarySyncState.peers.firstOrNull()
+                        SettingItem(
+                            title =
+                                stringResource(
+                                    if (getPlatform() == Platform.Android) Res.string.login_sync_android_title else Res.string.login_sync_desktop_title,
+                                ),
+                            subtitle =
+                                when {
+                                    getPlatform() != Platform.Android -> stringResource(Res.string.login_sync_desktop_description)
+                                    syncPeer != null -> stringResource(Res.string.library_sync_send_logins_paired, syncPeer.name)
+                                    else -> stringResource(Res.string.login_sync_android_description)
+                                },
+                            onClick = { showLoginSyncDialog = true },
+                        )
+                        SettingItem(
+                            title = stringResource(Res.string.library_sync_title),
+                            subtitle =
+                                when {
+                                    librarySyncState.problem == LibrarySyncProblem.WINDOWS_PUBLIC_NETWORK -> {
+                                        stringResource(Res.string.library_sync_windows_public)
+                                    }
 
-                                syncPeer == null -> {
-                                    stringResource(
-                                        if (getPlatform() == Platform.Android) {
-                                            Res.string.library_sync_not_paired_android
-                                        } else {
-                                            Res.string.library_sync_not_paired_desktop
-                                        },
-                                    )
-                                }
+                                    syncPeer == null -> {
+                                        stringResource(
+                                            if (getPlatform() == Platform.Android) {
+                                                Res.string.library_sync_not_paired_android
+                                            } else {
+                                                Res.string.library_sync_not_paired_desktop
+                                            },
+                                        )
+                                    }
 
-                                else -> {
-                                    val names = librarySyncState.peers.joinToString { it.name }
-                                    librarySyncState.lastSyncAt?.let { stringResource(Res.string.library_sync_peer_synced, names, syncedAgo(it)) }
-                                        ?: stringResource(Res.string.library_sync_peer_not_synced, names)
-                                }
-                            },
-                        onClick = { showLibrarySyncDialog = true },
-                    )
+                                    else -> {
+                                        val names = librarySyncState.peers.joinToString { it.name }
+                                        librarySyncState.lastSyncAt?.let { stringResource(Res.string.library_sync_peer_synced, names, syncedAgo(it)) }
+                                            ?: stringResource(Res.string.library_sync_peer_not_synced, names)
+                                    }
+                                },
+                            onClick = { showLibrarySyncDialog = true },
+                        )
+                    }
                     SettingItem(
                         title = stringResource(Res.string.account_sync_title),
                         subtitle =
@@ -1555,7 +1565,7 @@ fun SettingScreen(
                 // Android-only branch — "Open system equalizer" is an Android feature — and this
                 // one is on both platforms: mpv's `af` chain on Desktop, an AudioProcessor in the
                 // Media3 sink on Android, driven from the same stored curve.
-                AnimatedVisibility(visible = getPlatform() != Platform.Android || equalizerType != DataStoreManager.EQUALIZER_TYPE_SYSTEM) {
+                AnimatedVisibility(visible = hasAudioEngine() && (getPlatform() != Platform.Android || equalizerType != DataStoreManager.EQUALIZER_TYPE_SYSTEM)) {
                     Column {
                         SettingItem(
                             title = stringResource(Res.string.equalizer),
@@ -1571,46 +1581,48 @@ fun SettingScreen(
                         }
                     }
                 }
-                // Beside the equalizer rather than in its own group: all three are the same kind of
-                // thing — one stored setting reshaping the audio on both backends — and a user
-                // hunting for "reverb" looks wherever the sound settings are, not under a heading
-                // they have to guess.
-                SettingItem(
-                    title = stringResource(Res.string.audio_delay),
-                    subtitle = stringResource(Res.string.audio_delay_description),
-                    smallSubtitle = true,
-                    switch = (delayEnabled to { viewModel.setDelayEnabled(it) }),
-                )
-                // Only while on, like the curve — and the three values survive the switch, so
-                // turning it back on returns to the echo the user dialled in.
-                AnimatedVisibility(visible = delayEnabled) {
-                    DelaySection()
-                }
-                SettingItem(
-                    title = stringResource(Res.string.audio_reverb),
-                    subtitle = stringResource(Res.string.audio_reverb_description),
-                    smallSubtitle = true,
-                    switch = (reverbEnabled to { viewModel.setReverbEnabled(it) }),
-                )
-                // Same again: the room and the wet level outlive the switch.
-                AnimatedVisibility(visible = reverbEnabled) {
-                    ReverbSection()
-                }
-                SettingItem(
-                    title = stringResource(Res.string.audio_eight_d),
-                    subtitle =
-                        when {
-                            castState.isRemote -> stringResource(Res.string.not_available_while_casting)
-                            !eightDAvailable -> stringResource(Res.string.eight_d_unavailable)
-                            else -> stringResource(Res.string.audio_eight_d_description)
-                        },
-                    smallSubtitle = true,
-                    switch = (eightDEnabled to viewModel::setEightDEnabled),
-                    // A saved on-state may still be switched off when the native filter is absent.
-                    isEnable = !castState.isRemote && (eightDAvailable || eightDEnabled),
-                )
-                AnimatedVisibility(visible = eightDEnabled && eightDAvailable && !castState.isRemote) {
-                    EightDSection()
+                if (hasAudioEngine()) {
+                    // Beside the equalizer rather than in its own group: all three are the same kind of
+                    // thing — one stored setting reshaping the audio on both backends — and a user
+                    // hunting for "reverb" looks wherever the sound settings are, not under a heading
+                    // they have to guess.
+                    SettingItem(
+                        title = stringResource(Res.string.audio_delay),
+                        subtitle = stringResource(Res.string.audio_delay_description),
+                        smallSubtitle = true,
+                        switch = (delayEnabled to { viewModel.setDelayEnabled(it) }),
+                    )
+                    // Only while on, like the curve — and the three values survive the switch, so
+                    // turning it back on returns to the echo the user dialled in.
+                    AnimatedVisibility(visible = delayEnabled) {
+                        DelaySection()
+                    }
+                    SettingItem(
+                        title = stringResource(Res.string.audio_reverb),
+                        subtitle = stringResource(Res.string.audio_reverb_description),
+                        smallSubtitle = true,
+                        switch = (reverbEnabled to { viewModel.setReverbEnabled(it) }),
+                    )
+                    // Same again: the room and the wet level outlive the switch.
+                    AnimatedVisibility(visible = reverbEnabled) {
+                        ReverbSection()
+                    }
+                    SettingItem(
+                        title = stringResource(Res.string.audio_eight_d),
+                        subtitle =
+                            when {
+                                castState.isRemote -> stringResource(Res.string.not_available_while_casting)
+                                !eightDAvailable -> stringResource(Res.string.eight_d_unavailable)
+                                else -> stringResource(Res.string.audio_eight_d_description)
+                            },
+                        smallSubtitle = true,
+                        switch = (eightDEnabled to viewModel::setEightDEnabled),
+                        // A saved on-state may still be switched off when the native filter is absent.
+                        isEnable = !castState.isRemote && (eightDAvailable || eightDEnabled),
+                    )
+                    AnimatedVisibility(visible = eightDEnabled && eightDAvailable && !castState.isRemote) {
+                        EightDSection()
+                    }
                 }
                 SettingItem(
                     title = stringResource(Res.string.save_playback_state),
@@ -1624,109 +1636,111 @@ fun SettingScreen(
                         switch = (killServiceOnExit to { viewModel.setKillServiceOnExit(it) }),
                     )
                 }
-                // Crossfade (all platforms)
-                SettingItem(
-                    title = stringResource(Res.string.crossfade),
-                    subtitle =
-                        if (castState.isRemote) {
-                            stringResource(Res.string.not_available_while_casting)
-                        } else {
-                            stringResource(Res.string.crossfade_description)
-                        },
-                    smallSubtitle = true,
-                    switch = (crossfadeEnabled to { viewModel.setCrossfadeEnabled(it) }),
-                    isEnable = !castState.isRemote,
-                )
-                AnimatedVisibility(visible = crossfadeEnabled) {
-                    Column {
-                        SettingItem(
-                            title = stringResource(Res.string.crossfade_duration),
-                            subtitle =
-                                if (castState.isRemote) {
-                                    stringResource(Res.string.not_available_while_casting)
-                                } else if (crossfadeDuration == DataStoreManager.CROSSFADE_DURATION_AUTO) {
-                                    stringResource(Res.string.crossfade_auto)
-                                } else {
-                                    "${crossfadeDuration / 1000}s"
-                                },
-                            isEnable = !castState.isRemote,
-                            onClick = {
-                                viewModel.setAlertData(
-                                    SettingAlertState(
-                                        title = runBlocking { getString(Res.string.crossfade_duration) },
-                                        selectOne =
-                                            SettingAlertState.SelectData(
-                                                listSelect =
-                                                    listOf(
-                                                        (crossfadeDuration == DataStoreManager.CROSSFADE_DURATION_AUTO) to
-                                                            runBlocking { getString(Res.string.crossfade_auto) },
-                                                        (crossfadeDuration == 1000) to "1s",
-                                                        (crossfadeDuration == 2000) to "2s",
-                                                        (crossfadeDuration == 3000) to "3s",
-                                                        (crossfadeDuration == 5000) to "5s",
-                                                        (crossfadeDuration == 8000) to "8s",
-                                                        (crossfadeDuration == 10000) to "10s",
-                                                        (crossfadeDuration == 12000) to "12s",
-                                                        (crossfadeDuration == 15000) to "15s",
-                                                        (crossfadeDuration == 20000) to "20s",
-                                                        (crossfadeDuration == 30000) to "30s",
-                                                    ),
-                                            ),
-                                        confirm =
-                                            runBlocking { getString(Res.string.change) } to { state ->
-                                                val duration =
-                                                    when (state.selectOne?.getSelected()) {
-                                                        runBlocking {
-                                                            getString(
-                                                                Res.string.crossfade_auto,
-                                                            )
-                                                        },
-                                                        -> DataStoreManager.CROSSFADE_DURATION_AUTO
-                                                        "1s" -> 1000
-                                                        "2s" -> 2000
-                                                        "3s" -> 3000
-                                                        "5s" -> 5000
-                                                        "8s" -> 8000
-                                                        "10s" -> 10000
-                                                        "12s" -> 12000
-                                                        "15s" -> 15000
-                                                        "20s" -> 20000
-                                                        "30s" -> 30000
-                                                        else -> 5000
-                                                    }
-                                                viewModel.setCrossfadeDuration(duration)
-                                            },
-                                        dismiss = runBlocking { getString(Res.string.cancel) },
-                                    ),
-                                )
+                if (hasAudioEngine()) {
+                    // Crossfade (Android and Desktop)
+                    SettingItem(
+                        title = stringResource(Res.string.crossfade),
+                        subtitle =
+                            if (castState.isRemote) {
+                                stringResource(Res.string.not_available_while_casting)
+                            } else {
+                                stringResource(Res.string.crossfade_description)
                             },
-                        )
-//                        if (getPlatform() == Platform.Android) {
-                        SettingItem(
-                            title = stringResource(Res.string.crossfade_dj_mode),
-                            subtitle =
-                                if (castState.isRemote) {
-                                    stringResource(Res.string.not_available_while_casting)
-                                } else {
-                                    stringResource(Res.string.crossfade_dj_mode_description)
+                        smallSubtitle = true,
+                        switch = (crossfadeEnabled to { viewModel.setCrossfadeEnabled(it) }),
+                        isEnable = !castState.isRemote,
+                    )
+                    AnimatedVisibility(visible = crossfadeEnabled) {
+                        Column {
+                            SettingItem(
+                                title = stringResource(Res.string.crossfade_duration),
+                                subtitle =
+                                    if (castState.isRemote) {
+                                        stringResource(Res.string.not_available_while_casting)
+                                    } else if (crossfadeDuration == DataStoreManager.CROSSFADE_DURATION_AUTO) {
+                                        stringResource(Res.string.crossfade_auto)
+                                    } else {
+                                        "${crossfadeDuration / 1000}s"
+                                    },
+                                isEnable = !castState.isRemote,
+                                onClick = {
+                                    viewModel.setAlertData(
+                                        SettingAlertState(
+                                            title = runBlocking { getString(Res.string.crossfade_duration) },
+                                            selectOne =
+                                                SettingAlertState.SelectData(
+                                                    listSelect =
+                                                        listOf(
+                                                            (crossfadeDuration == DataStoreManager.CROSSFADE_DURATION_AUTO) to
+                                                                runBlocking { getString(Res.string.crossfade_auto) },
+                                                            (crossfadeDuration == 1000) to "1s",
+                                                            (crossfadeDuration == 2000) to "2s",
+                                                            (crossfadeDuration == 3000) to "3s",
+                                                            (crossfadeDuration == 5000) to "5s",
+                                                            (crossfadeDuration == 8000) to "8s",
+                                                            (crossfadeDuration == 10000) to "10s",
+                                                            (crossfadeDuration == 12000) to "12s",
+                                                            (crossfadeDuration == 15000) to "15s",
+                                                            (crossfadeDuration == 20000) to "20s",
+                                                            (crossfadeDuration == 30000) to "30s",
+                                                        ),
+                                                ),
+                                            confirm =
+                                                runBlocking { getString(Res.string.change) } to { state ->
+                                                    val duration =
+                                                        when (state.selectOne?.getSelected()) {
+                                                            runBlocking {
+                                                                getString(
+                                                                    Res.string.crossfade_auto,
+                                                                )
+                                                            },
+                                                            -> DataStoreManager.CROSSFADE_DURATION_AUTO
+                                                            "1s" -> 1000
+                                                            "2s" -> 2000
+                                                            "3s" -> 3000
+                                                            "5s" -> 5000
+                                                            "8s" -> 8000
+                                                            "10s" -> 10000
+                                                            "12s" -> 12000
+                                                            "15s" -> 15000
+                                                            "20s" -> 20000
+                                                            "30s" -> 30000
+                                                            else -> 5000
+                                                        }
+                                                    viewModel.setCrossfadeDuration(duration)
+                                                },
+                                            dismiss = runBlocking { getString(Res.string.cancel) },
+                                        ),
+                                    )
                                 },
-                            smallSubtitle = true,
-                            switch = ((crossfadeDjMode) to { viewModel.setCrossfadeDjMode(it) }),
-                            isEnable = !castState.isRemote,
-                        )
-                        SettingItem(
-                            title = stringResource(Res.string.crossfade_skip_album),
-                            subtitle =
-                                if (castState.isRemote) {
-                                    stringResource(Res.string.not_available_while_casting)
-                                } else {
-                                    stringResource(Res.string.crossfade_skip_album_description)
-                                },
-                            smallSubtitle = true,
-                            switch = ((crossfadeSkipAlbum) to { viewModel.setCrossfadeSkipAlbum(it) }),
-                            isEnable = !castState.isRemote,
-                        )
-//                        }
+                            )
+//                            if (getPlatform() == Platform.Android) {
+                            SettingItem(
+                                title = stringResource(Res.string.crossfade_dj_mode),
+                                subtitle =
+                                    if (castState.isRemote) {
+                                        stringResource(Res.string.not_available_while_casting)
+                                    } else {
+                                        stringResource(Res.string.crossfade_dj_mode_description)
+                                    },
+                                smallSubtitle = true,
+                                switch = ((crossfadeDjMode) to { viewModel.setCrossfadeDjMode(it) }),
+                                isEnable = !castState.isRemote,
+                            )
+                            SettingItem(
+                                title = stringResource(Res.string.crossfade_skip_album),
+                                subtitle =
+                                    if (castState.isRemote) {
+                                        stringResource(Res.string.not_available_while_casting)
+                                    } else {
+                                        stringResource(Res.string.crossfade_skip_album_description)
+                                    },
+                                smallSubtitle = true,
+                                switch = ((crossfadeSkipAlbum) to { viewModel.setCrossfadeSkipAlbum(it) }),
+                                isEnable = !castState.isRemote,
+                            )
+//                            }
+                        }
                     }
                 }
             }

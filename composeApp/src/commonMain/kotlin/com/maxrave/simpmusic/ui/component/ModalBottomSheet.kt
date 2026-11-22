@@ -137,6 +137,7 @@ import com.maxrave.domain.utils.FilterState
 import com.maxrave.domain.utils.connectArtists
 import com.maxrave.domain.utils.toListName
 import com.maxrave.logger.Logger
+import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.copyToClipboard
 import com.maxrave.simpmusic.expect.shareUrl
 import com.maxrave.simpmusic.expect.ui.VerticalScrollBar
@@ -145,6 +146,7 @@ import com.maxrave.simpmusic.expect.ui.photoPickerResult
 import com.maxrave.simpmusic.extension.displayNameRes
 import com.maxrave.simpmusic.extension.greyScale
 import com.maxrave.simpmusic.extension.toOneDecimalString
+import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.icon.AccessAlarm
 import com.maxrave.simpmusic.ui.icon.Add
 import com.maxrave.simpmusic.ui.icon.AddCircleOutline
@@ -2217,12 +2219,13 @@ fun PlaybackSpeedPitchBottomSheet(
                         )
                     }
                 }
-                // Shown on every platform. It used to be hidden on Desktop because LibVLC had no
-                // independent pitch control, but that backend is long gone — mpv shifts pitch with
-                // its rubberband filter. The control is still locked out while crossfade is on,
-                // handled by the caller: crossfade owns mpv's filter chain and the two would fight
-                // over it.
-                run {
+                // Shown on Android and Desktop. It used to be hidden on Desktop because LibVLC had
+                // no independent pitch control, but that backend is long gone — mpv shifts pitch
+                // with its rubberband filter. The control is still locked out while crossfade is
+                // on, handled by the caller: crossfade owns mpv's filter chain and the two would
+                // fight over it. iOS's AVPlayer changes speed and keeps the pitch, with no shift
+                // of its own, so the row is not shown there.
+                if (getPlatform() != Platform.iOS) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),

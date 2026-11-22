@@ -44,10 +44,11 @@ the device. There is no remote fallback behind it, and the requests go out signe
 
 Not on iOS: crossfade, the equalizer, delay/reverb, 8D, the SoundCloud waveform, pitch shift (speed
 works), song recognition, Google Cast (the cast button is AirPlay's route picker instead), picture in
-picture, the in-app device volume row, widgets, and the QR pairing (Login sync and Library sync open
-a dialog saying so). Some of their settings still show on iOS and do nothing there; hiding them is
-not done yet. **Sync account works**, so an iPhone shares the library, history and downloads with the
-other devices through your host.
+picture, the in-app device volume row, widgets, and the QR pairing (Login sync, Library sync). Their
+settings are hidden on iOS (`hasAudioEngine()` in SettingScreen.kt, the pitch row in the speed sheet,
+the pairing rows under Devices); the SoundCloud style draws a flat line where its waveform would be.
+**Sync account works**, so an iPhone shares the library, history and downloads with the other
+devices through your host.
 
 Backups are written to the app's Documents folder, which the Files app shows as
 On My iPhone › SimpMusic; restore reads any backup picked in Files, including Android and Desktop
