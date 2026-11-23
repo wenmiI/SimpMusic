@@ -14,7 +14,12 @@ import kotlin.native.ref.WeakReference
 /** What iosApp's SwiftUI scene shows: the whole app, in [AppViewController]. */
 fun MainViewController(): UIViewController {
     startSimpMusic()
-    return AppViewController(ComposeUIViewController { App() })
+    return AppViewController(
+        ComposeUIViewController {
+            IosImageLoader()
+            App()
+        },
+    )
 }
 
 /**
