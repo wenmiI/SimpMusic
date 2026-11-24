@@ -112,6 +112,7 @@ import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.isAppLinkAvailable
 import com.maxrave.simpmusic.utils.libraryTabOf
 import com.maxrave.simpmusic.viewModel.SharedViewModel
+import com.maxrave.simpmusic.viewModel.UIEvent
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownTypography
 import dev.chrisbanes.haze.hazeSource
@@ -379,6 +380,13 @@ fun App(
                             viewModel.makeToast(getString(Res.string.this_link_is_not_supported))
                         }
                     }
+
+                    // Playback control, e.g. from Hermes Visor's glasses tap-and-hold gesture.
+                    // simpmusic://play resumes, pause pauses, next/previous skip. Always available.
+                    "play" -> if (!viewModel.controllerState.value.isPlaying) viewModel.onUIEvent(UIEvent.PlayPause)
+                    "pause" -> if (viewModel.controllerState.value.isPlaying) viewModel.onUIEvent(UIEvent.PlayPause)
+                    "next" -> viewModel.onUIEvent(UIEvent.Next)
+                    "previous" -> viewModel.onUIEvent(UIEvent.Previous)
 
                     else -> {
                         viewModel.makeToast(getString(Res.string.this_link_is_not_supported))
