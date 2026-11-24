@@ -41,6 +41,7 @@ include(
     ":composeApp",
     ":desktopApp",
     ":syncServer",
+    ":streamServer",
     ":common",
     ":data",
     ":domain",
